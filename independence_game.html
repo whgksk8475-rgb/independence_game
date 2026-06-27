@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>독립군 구출 작전</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&family=Noto+Sans+KR:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0a0e14;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Noto Sans KR',sans-serif;overflow:hidden;}
+#wrap{position:relative;width:900px;height:580px;}
+canvas{display:block;border-radius:6px;box-shadow:0 0 80px rgba(180,120,0,0.15),0 0 0 2px rgba(140,100,30,0.5);}
+
+/* ── 공통 오버레이 ── */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:36px;text-align:center;border-radius:6px;transition:opacity .3s;}
+.screen.hidden{opacity:0;pointer-events:none;}
+
+/* ── 시작화면 ── */
+#startScreen{background:linear-gradient(155deg,rgba(6,10,18,0.97),rgba(18,8,2,0.97));border:2px solid rgba(160,120,30,0.4);}
+#startScreen h1{font-family:'Noto Serif KR',serif;font-size:32px;font-weight:900;letter-spacing:3px;
+  background:linear-gradient(135deg,#f8d850,#c07808,#f8d850);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px;}
+.sub{font-size:11px;color:#806840;letter-spacing:5px;margin-bottom:22px;}
+.desc{font-size:13px;line-height:2.1;color:#c8bc98;max-width:500px;margin-bottom:22px;
+  background:rgba(255,255,255,0.03);padding:16px 22px;border-radius:8px;border:1px solid rgba(160,120,30,0.18);}
+.desc strong{color:#f0c030;}
+.btn{background:linear-gradient(135deg,#a86800,#f0c840,#a86800);color:#160800;
+  border:none;border-radius:8px;padding:12px 48px;
+  font-family:'Noto Serif KR',serif;font-size:18px;font-weight:900;cursor:pointer;letter-spacing:2px;
+  box-shadow:0 4px 22px rgba(180,120,0,0.5);transition:transform .12s,box-shadow .12s;}
+.btn:hover{transform:scale(1.05);box-shadow:0 6px 30px rgba(180,120,0,0.7);}
+
+/* ── 퀴즈 오버레이 ── */
+#quizScreen{background:rgba(4,8,16,0.96);border:2px solid rgba(160,120,30,0.5);}
+#quizScreen h2{font-family:'Noto Serif KR',serif;font-size:14px;color:#907840;letter-spacing:3px;margin-bottom:12px;}
+#quizQ{font-family:'Noto Serif KR',serif;font-size:18px;font-weight:700;color:#f0e4c0;
+  max-width:620px;line-height:1.7;margin-bottom:20px;}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:600px;width:100%;}
+.choice-btn{background:rgba(255,255,255,0.05);border:1.5px solid rgba(160,120,30,0.4);
+  border-radius:8px;padding:12px 16px;color:#d4c8a0;font-size:14px;font-weight:700;
+  font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .15s;text-align:left;}
+.choice-btn:hover{background:rgba(240,200,60,0.12);border-color:#f0c840;color:#f8e880;}
+.choice-btn.correct{background:rgba(40,160,70,0.25);border-color:#40d060;color:#80ff90;}
+.choice-btn.wrong{background:rgba(200,40,20,0.25);border-color:#ff4020;color:#ff9080;}
+
+/* ── 해설 오버레이 ── */
+#explainScreen{background:rgba(4,8,16,0.97);border:2px solid rgba(200,50,30,0.6);}
+.ep-wrong-badge{font-size:28px;margin-bottom:8px;}
+.ep-title{font-family:'Noto Serif KR',serif;font-size:17px;font-weight:900;color:#ff5030;margin-bottom:12px;letter-spacing:1px;}
+.ep-qtext{font-size:12px;color:#a09070;margin-bottom:8px;line-height:1.7;}
+.ep-ans{background:rgba(245,200,60,0.1);border:1px solid rgba(245,200,60,0.4);
+  border-radius:6px;padding:9px 16px;margin-bottom:10px;font-size:14px;font-weight:700;color:#f5c830;}
+.ep-body{font-size:13px;line-height:1.85;color:#c8bc98;max-width:520px;
+  background:rgba(255,255,255,0.04);border-radius:6px;padding:10px 14px;
+  border-left:3px solid rgba(160,120,30,0.5);text-align:left;margin-bottom:14px;}
+.ep-time{font-size:12px;color:#907840;margin-bottom:14px;}
+
+/* ── 결과 화면 ── */
+#resultScreen{background:linear-gradient(155deg,rgba(6,10,18,0.98),rgba(14,6,2,0.98));border:2px solid rgba(160,120,30,0.4);}
+#resultScreen h1{font-family:'Noto Serif KR',serif;font-size:34px;font-weight:900;margin-bottom:6px;}
+h1.win{background:linear-gradient(135deg,#f8d850,#f09010);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+h1.lose{color:#d84020;}
+.res-score{font-size:58px;font-weight:900;font-family:'Noto Serif KR',serif;
+  color:#f5d040;margin:10px 0;text-shadow:0 0 30px rgba(245,208,60,0.5);}
+.res-msg{font-size:14px;line-height:2;color:#c8bc98;max-width:480px;margin-bottom:22px;}
+.res-msg strong{color:#f5d040;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="900" height="580"></canvas>
+
+  <!-- 시작 -->
+  <div class="screen" id="startScreen">
+    <h1>🗡️ 독립군 구출 작전</h1>
+    <div class="sub">대한민국 임시정부 인물 탐구 · 1919~1945</div>
+    <div class="desc">
+      <strong>1단계 · 퀴즈</strong> — 5문제를 풀어 구출 시간을 적립하세요!<br>
+      정답: <strong>+1~3초</strong> 랜덤 적립 / 오답: 해설을 확인 후 넘어가요<br><br>
+      <strong>2단계 · 구출 작전</strong> — 적립된 시간 동안<br>
+      방향키로 움직여 순사 2명을 피하면서<br>
+      감옥에 갇힌 독립군을 최대한 구출하세요!
+    </div>
+    <button class="btn" onclick="startQuiz()">작전 개시!</button>
+  </div>
+
+  <!-- 퀴즈 -->
+  <div class="screen hidden" id="quizScreen">
+    <h2 id="quizProgress">문제 1 / 5</h2>
+    <div id="quizQ"></div>
+    <div class="choices" id="choicesBox"></div>
+  </div>
+
+  <!-- 해설 -->
+  <div class="screen hidden" id="explainScreen">
+    <div class="ep-wrong-badge">📖</div>
+    <div class="ep-title">오답 해설</div>
+    <div class="ep-qtext" id="epQ"></div>
+    <div class="ep-ans">정답: <span id="epAns"></span></div>
+    <div class="ep-body" id="epBody"></div>
+    <div class="ep-time" id="epTime"></div>
+    <button class="btn" onclick="nextQuestion()" style="padding:10px 36px;font-size:15px;">다음 ▶</button>
+  </div>
+
+  <!-- 결과 -->
+  <div class="screen hidden" id="resultScreen">
+    <h1 id="resTitle"></h1>
+    <div class="res-score" id="resScore"></div>
+    <p class="res-msg" id="resMsg"></p>
+    <button class="btn" onclick="location.reload()">다시 도전!</button>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════
+   문제 은행 — 임시정부 인물 학습
+════════════════════════════════════════════════ */
+const Q_BANK = [
+  { q:"대한민국 임시정부를 이끌며 '백범일지'를 쓴 독립운동가는?",
+    choices:["안창호","이승만","김구","윤봉길"], correct:"김구",
+    explain:"김구(1876~1949)는 임시정부 주석으로서 한국광복군을 창설하고 끝까지 독립운동을 이끌었습니다. '백범일지'는 그의 자서전으로, 독립을 향한 신념이 담겨 있습니다." },
+  { q:"흥사단을 창설하고 민족 실력 양성을 주장한 독립운동가는?",
+    choices:["김구","안창호","이봉창","신채호"], correct:"안창호",
+    explain:"안창호(1878~1938)는 도산이라는 호를 가졌으며, 민족의 실력을 길러야 독립을 이룰 수 있다고 주장했습니다. 흥사단과 대성학교를 세워 교육·계몽 운동을 이끌었습니다." },
+  { q:"1932년 상하이 훙커우 공원에서 폭탄을 던진 독립운동가는?",
+    choices:["이봉창","안중근","윤봉길","김좌진"], correct:"윤봉길",
+    explain:"윤봉길(1908~1932)은 1932년 4월 29일 상하이 훙커우 공원에서 일본 군사령관 등을 향해 폭탄을 던졌습니다. 이 의거로 중국의 독립운동 지원이 크게 늘었습니다." },
+  { q:"하얼빈 역에서 이토 히로부미를 저격한 독립운동가는?",
+    choices:["윤봉길","안중근","이봉창","홍범도"], correct:"안중근",
+    explain:"안중근(1879~1910)은 1909년 10월 26일 중국 하얼빈 역에서 조선 침략의 원흉 이토 히로부미를 저격했습니다. 뤼순 감옥에서 순국하기 전 '동양평화론'을 집필했습니다." },
+  { q:"봉오동 전투와 청산리 대첩에서 일본군을 크게 무찌른 독립군 지휘관은?",
+    choices:["김구","안창호","홍범도","이회영"], correct:"홍범도",
+    explain:"홍범도(1868~1943)는 1920년 봉오동 전투와 청산리 대첩에서 독립군을 이끌어 일본 정규군을 크게 물리쳤습니다. '봉오동의 호랑이'로 불리며 무장 독립운동의 상징이 되었습니다." },
+  { q:"임시정부 초대 대통령을 지낸 인물은?",
+    choices:["김구","안창호","이승만","홍범도"], correct:"이승만",
+    explain:"이승만(1875~1965)은 1919년 대한민국 임시정부 초대 대통령에 선출되었습니다. 미국에서 외교 독립운동을 전개했으며, 광복 후 대한민국 초대 대통령이 되었습니다." },
+  { q:"'님의 침묵'을 쓰고 불교계 독립운동을 이끈 인물은?",
+    choices:["신채호","한용운","이육사","윤동주"], correct:"한용운",
+    explain:"한용운(1879~1944)은 승려이자 시인·독립운동가로, 3·1 운동 민족 대표 33인 중 한 명입니다. '님의 침묵'은 일제에 빼앗긴 조국을 그리워하는 마음을 담은 시집입니다." },
+  { q:"역사 연구를 통해 민족정신을 고취하고 '조선상고사'를 저술한 인물은?",
+    choices:["박은식","신채호","안창호","이상재"], correct:"신채호",
+    explain:"신채호(1880~1936)는 언론인이자 역사학자·독립운동가로, '조선상고사', '조선혁명선언' 등을 저술했습니다. 민족 고유의 역사와 정신을 강조해 항일 의식을 드높였습니다." },
+  { q:"노블레스 오블리주를 실천해 전 재산을 독립운동에 바친 인물은?",
+    choices:["이회영","안중근","김좌진","이봉창"], correct:"이회영",
+    explain:"이회영(1867~1932)은 명문 귀족 가문 출신임에도 전 재산을 처분하여 독립운동 자금으로 사용했습니다. 만주에 신흥무관학교를 세워 독립군 양성에 헌신했습니다." },
+  { q:"청산리 대첩을 이끈 또 다른 독립군 지휘관으로 '백야'라는 호를 가진 인물은?",
+    choices:["홍범도","이봉창","김좌진","지청천"], correct:"김좌진",
+    explain:"김좌진(1889~1930)은 1920년 청산리 대첩에서 홍범도 장군과 함께 일본군을 크게 격파했습니다. '백야(白冶)'라는 호처럼 민족을 위해 뜨겁게 싸운 독립군의 상징적 인물입니다." },
+];
+
+/* ════════════════════════════════════════════════
+   캔버스 / 상수
+════════════════════════════════════════════════ */
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const W=900,H=580;
+
+/* 게임 월드 너비 (스크롤) */
+const WORLD_W=2400;
+const GROUND_Y=H-70;
+const PLAYER_W=28,PLAYER_H=44;
+const GUARD_W=26,GUARD_H=42;
+const PRISONER_W=22,PRISONER_H=36;
+const CELL_W=70,CELL_H=60;
+
+/* ════════════════════════════════════════════════
+   퀴즈 상태
+════════════════════════════════════════════════ */
+let quizState={
+  questions:[],
+  idx:0,
+  timeBank:0,   // 적립 시간(초)
+  answered:false,
+};
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function prepareQuiz(){
+  const pool=shuffle([...Q_BANK]).slice(0,5);
+  quizState.questions=pool.map(q=>({...q,choices:shuffle([...q.choices])}));
+  quizState.idx=0; quizState.timeBank=0; quizState.answered=false;
+}
+
+function startQuiz(){
+  prepareQuiz();
+  document.getElementById('startScreen').classList.add('hidden');
+  showQuestion();
+}
+
+function showQuestion(){
+  const q=quizState.questions[quizState.idx];
+  document.getElementById('quizScreen').classList.remove('hidden');
+  document.getElementById('explainScreen').classList.add('hidden');
+  document.getElementById('quizProgress').textContent=`문제 ${quizState.idx+1} / 5`;
+  document.getElementById('quizQ').textContent=q.q;
+  const box=document.getElementById('choicesBox');
+  box.innerHTML='';
+  q.choices.forEach(c=>{
+    const btn=document.createElement('button');
+    btn.className='choice-btn'; btn.textContent=c;
+    btn.onclick=()=>selectAnswer(c,btn);
+    box.appendChild(btn);
+  });
+  quizState.answered=false;
+}
+
+function selectAnswer(chosen,btn){
+  if(quizState.answered) return;
+  quizState.answered=true;
+  const q=quizState.questions[quizState.idx];
+  const isCorrect=chosen===q.correct;
+  /* 모든 버튼 비활성화 + 정답 표시 */
+  document.querySelectorAll('.choice-btn').forEach(b=>{
+    b.style.pointerEvents='none';
+    if(b.textContent===q.correct) b.classList.add('correct');
+  });
+  if(!isCorrect) btn.classList.add('wrong');
+
+  if(isCorrect){
+    const gained=1+Math.floor(Math.random()*3); // 1~3초
+    quizState.timeBank+=gained;
+    setTimeout(()=>{
+      /* 정답이면 바로 다음 문제 */
+      quizState.idx++;
+      if(quizState.idx>=5){ startActionGame(); return; }
+      showQuestion();
+    },900);
+  } else {
+    /* 오답이면 해설 패널 */
+    setTimeout(()=>showExplain(q),700);
+  }
+}
+
+function showExplain(q){
+  document.getElementById('quizScreen').classList.add('hidden');
+  document.getElementById('explainScreen').classList.remove('hidden');
+  document.getElementById('epQ').textContent=`Q. ${q.q}`;
+  document.getElementById('epAns').textContent=q.correct;
+  document.getElementById('epBody').textContent=q.explain;
+  document.getElementById('epTime').textContent=
+    `⏱ 현재 적립 시간: ${quizState.timeBank}초`;
+}
+
+function nextQuestion(){
+  document.getElementById('explainScreen').classList.add('hidden');
+  quizState.idx++;
+  if(quizState.idx>=5){ startActionGame(); return; }
+  showQuestion();
+}
+
+/* ════════════════════════════════════════════════
+   액션 게임 상태
+════════════════════════════════════════════════ */
+let G={};
+let animId=null,lastTs=0;
+let particles=[];
+let camX=0; // 카메라 X (스크롤)
+let bgLayers=[]; // 패럴랙스 레이어
+
+/* ── 타일 배경 오프스크린 ── */
+let bgTile=null;
+function buildBgTile(){
+  /* 320px 단위 반복 타일 */
+  bgTile=document.createElement('canvas');
+  bgTile.width=320; bgTile.height=H;
+  const g=bgTile.getContext('2d');
+
+  /* 하늘 */
+  const sk=g.createLinearGradient(0,0,0,200);
+  sk.addColorStop(0,'#1a1a2e'); sk.addColorStop(1,'#2a2a40');
+  g.fillStyle=sk; g.fillRect(0,0,320,H);
+
+  /* 별 */
+  for(let i=0;i<30;i++){
+    g.fillStyle=`rgba(255,255,255,${0.3+Math.random()*0.5})`;
+    g.beginPath();g.arc(Math.random()*320,Math.random()*160,0.8+Math.random()*1.2,0,Math.PI*2);g.fill();
+  }
+
+  /* 건물 실루엣 (1900년대 조선 거리) */
+  const bldgs=[
+    {x:0,w:60,h:130},{x:65,w:50,h:100},{x:120,w:80,h:150},{x:210,w:55,h:115},{x:270,w:50,h:95}
+  ];
+  bldgs.forEach(b=>{
+    g.fillStyle='#1a1a28';
+    g.fillRect(b.x,200-b.h,b.w,b.h);
+    /* 창문 */
+    for(let r=0;r<3;r++) for(let c=0;c<2;c++){
+      const lit=Math.random()>0.4;
+      g.fillStyle=lit?'rgba(255,210,80,0.6)':'rgba(20,20,40,0.8)';
+      g.fillRect(b.x+8+c*20,200-b.h+12+r*30,12,16);
+    }
+    /* 기와지붕 */
+    g.fillStyle='#0e0e1c';
+    g.beginPath();g.moveTo(b.x-4,200-b.h);g.lineTo(b.x+b.w/2,200-b.h-24);g.lineTo(b.x+b.w+4,200-b.h);g.fill();
+  });
+
+  /* 땅 */
+  const grd=g.createLinearGradient(0,GROUND_Y,0,H);
+  grd.addColorStop(0,'#3a2c18'); grd.addColorStop(1,'#28200e');
+  g.fillStyle=grd; g.fillRect(0,GROUND_Y,320,H-GROUND_Y);
+  /* 땅 라인 */
+  g.strokeStyle='#5a4028'; g.lineWidth=2;
+  g.beginPath();g.moveTo(0,GROUND_Y);g.lineTo(320,GROUND_Y);g.stroke();
+  /* 돌바닥 패턴 */
+  g.strokeStyle='rgba(100,80,40,0.3)'; g.lineWidth=1;
+  for(let x=0;x<320;x+=40){ g.beginPath();g.moveTo(x,GROUND_Y);g.lineTo(x,H);g.stroke(); }
+  for(let y=GROUND_Y+20;y<H;y+=20){ g.beginPath();g.moveTo(0,y);g.lineTo(320,y);g.stroke(); }
+}
+
+/* ════════════════════════════════════════════════
+   캐릭터 드로잉 (픽셀아트 스타일)
+════════════════════════════════════════════════ */
+
+/* 독립운동가 (플레이어) — 두루마기 */
+function drawPlayer(x,y,dir,moving,t){
+  const px=x-camX, py=y;
+  ctx.save();
+  if(dir<0){ctx.scale(-1,1);ctx.translate(-(px*2+PLAYER_W),0);}
+
+  /* 다리 애니 */
+  const legSwing=moving?Math.sin(t*8)*6:0;
+  ctx.fillStyle='#1a1a2e';
+  ctx.fillRect(px+6,py+26,8,18+legSwing*0.5);
+  ctx.fillRect(px+14,py+26,8,18-legSwing*0.5);
+  /* 신발 */
+  ctx.fillStyle='#0a0a14';
+  ctx.fillRect(px+4,py+42,10,4); ctx.fillRect(px+14,py+42,10,4);
+
+  /* 두루마기 몸통 */
+  const tg=ctx.createLinearGradient(px,py+10,px+PLAYER_W,py+10);
+  tg.addColorStop(0,'#d8d0b8'); tg.addColorStop(1,'#b8b0a0');
+  ctx.fillStyle=tg;
+  ctx.beginPath();ctx.roundRect(px+2,py+10,PLAYER_W-4,28,3);ctx.fill();
+  /* 옷깃 */
+  ctx.fillStyle='#c0b898';
+  ctx.beginPath();ctx.moveTo(px+PLAYER_W/2,py+10);ctx.lineTo(px+4,py+24);ctx.lineTo(px+PLAYER_W/2,py+20);ctx.fill();
+
+  /* 팔 */
+  const armSwing=moving?Math.sin(t*8)*8:0;
+  ctx.fillStyle='#c8c0a8';
+  ctx.fillRect(px-2,py+12,7,16+armSwing*0.3);
+  ctx.fillRect(px+PLAYER_W-5,py+12,7,16-armSwing*0.3);
+
+  /* 얼굴 */
+  const fg=ctx.createRadialGradient(px+PLAYER_W/2,py+6,1,px+PLAYER_W/2,py+6,8);
+  fg.addColorStop(0,'#e8c890'); fg.addColorStop(1,'#c8a870');
+  ctx.fillStyle=fg; ctx.beginPath();ctx.arc(px+PLAYER_W/2,py+6,8,0,Math.PI*2);ctx.fill();
+  /* 눈 */
+  ctx.fillStyle='#1a0800';
+  ctx.fillRect(px+PLAYER_W/2-4,py+4,3,3); ctx.fillRect(px+PLAYER_W/2+1,py+4,3,3);
+
+  /* 갓 */
+  ctx.fillStyle='#1a1a14';
+  ctx.beginPath();ctx.ellipse(px+PLAYER_W/2,py-2,12,3,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#2a2a20';
+  ctx.beginPath();ctx.ellipse(px+PLAYER_W/2,py-3,5,7,0,0,Math.PI*2);ctx.fill();
+
+  ctx.restore();
+}
+
+/* 일본 순사 */
+function drawGuard(guard,t){
+  const px=guard.x-camX;
+  if(px<-60||px>W+60) return;
+  const py=guard.y;
+  const dir=guard.dir;
+  ctx.save();
+  if(dir<0){ctx.scale(-1,1);ctx.translate(-(px*2+GUARD_W),0);}
+
+  /* 다리 */
+  const leg=Math.sin(t*7)*5;
+  ctx.fillStyle='#1a1a30';
+  ctx.fillRect(px+5,py+24,8,18+leg); ctx.fillRect(px+13,py+24,8,18-leg);
+  ctx.fillStyle='#0a0a20';
+  ctx.fillRect(px+3,py+40,10,4); ctx.fillRect(px+13,py+40,10,4);
+
+  /* 군복 몸통 */
+  const ug=ctx.createLinearGradient(px,py+8,px+GUARD_W,py+8);
+  ug.addColorStop(0,'#2a3848'); ug.addColorStop(1,'#1a2838');
+  ctx.fillStyle=ug;
+  ctx.beginPath();ctx.roundRect(px+2,py+8,GUARD_W-4,28,3);ctx.fill();
+  /* 금단추 */
+  ctx.fillStyle='#f0c030';
+  [py+12,py+18,py+24].forEach(by=>ctx.fillRect(px+GUARD_W/2-1,by,3,3));
+  /* 어깨장식 */
+  ctx.fillStyle='#d4a020';
+  ctx.fillRect(px,py+8,8,4); ctx.fillRect(px+GUARD_W-8,py+8,8,4);
+
+  /* 팔 + 곤봉 */
+  ctx.fillStyle='#202838';
+  ctx.fillRect(px-3,py+10,7,16);
+  ctx.fillRect(px+GUARD_W-4,py+10,7,16);
+  /* 곤봉 */
+  ctx.fillStyle='#5a3010';
+  ctx.fillRect(px+GUARD_W-2,py+18,4,18);
+  ctx.fillStyle='#3a1800';
+  ctx.fillRect(px+GUARD_W-3,py+34,6,6);
+
+  /* 얼굴 */
+  ctx.fillStyle='#d4a870'; ctx.beginPath();ctx.arc(px+GUARD_W/2,py+5,7,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#0a0808';
+  ctx.fillRect(px+GUARD_W/2-3,py+3,2,2); ctx.fillRect(px+GUARD_W/2+1,py+3,2,2);
+  /* 수염 */
+  ctx.fillStyle='#1a0800';
+  ctx.fillRect(px+GUARD_W/2-3,py+7,6,2);
+
+  /* 군모 */
+  ctx.fillStyle='#1a2838';
+  ctx.fillRect(px+1,py-7,GUARD_W-2,8);
+  ctx.fillStyle='#0a1828';
+  ctx.fillRect(px-2,py-1,GUARD_W+4,3);
+  ctx.fillStyle='#f0c030';
+  ctx.fillRect(px+GUARD_W/2-4,py-6,8,4);
+  /* 모자챙 */
+  ctx.fillStyle='#0a1828';
+  ctx.fillRect(px-4,py-1,GUARD_W+8,3);
+
+  /* 순사 표시 */
+  ctx.font='bold 10px sans-serif'; ctx.fillStyle='#ff4020'; ctx.textAlign='center';
+  ctx.fillText('순사',px+GUARD_W/2,py-14);
+
+  ctx.restore(); ctx.textAlign='left';
+}
+
+/* 독립군 (포로) */
+function drawPrisoner(p,t){
+  const px=p.x-camX;
+  if(px<-80||px>W+80) return;
+  const py=p.y;
+  if(p.rescued) return;
+  ctx.save();
+
+  /* 감옥 창살 */
+  const cx2=px+CELL_W/2, cy2=py-CELL_H/2;
+  ctx.fillStyle='rgba(0,0,0,0.5)';
+  ctx.fillRect(px,py-CELL_H,CELL_W,CELL_H);
+  ctx.strokeStyle='#8a7040'; ctx.lineWidth=3;
+  ctx.strokeRect(px,py-CELL_H,CELL_W,CELL_H);
+  /* 창살 */
+  ctx.lineWidth=2.5;
+  for(let i=1;i<4;i++){
+    ctx.beginPath();ctx.moveTo(px+i*CELL_W/4,py-CELL_H);ctx.lineTo(px+i*CELL_W/4,py);ctx.stroke();
+  }
+  ctx.beginPath();ctx.moveTo(px,py-CELL_H/2);ctx.lineTo(px+CELL_W,py-CELL_H/2);ctx.stroke();
+
+  /* 인물 */
+  const ipx=px+CELL_W/2-PRISONER_W/2;
+  const ipy=py-PRISONER_H-4;
+  /* 두루마기 (낡은 흰색) */
+  ctx.fillStyle='#c0b8a0'; ctx.beginPath();ctx.roundRect(ipx+2,ipy+10,PRISONER_W-4,22,3);ctx.fill();
+  /* 얼굴 */
+  ctx.fillStyle='#d4a870'; ctx.beginPath();ctx.arc(ipx+PRISONER_W/2,ipy+6,6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#0a0808'; ctx.fillRect(ipx+PRISONER_W/2-3,ipy+4,2,2); ctx.fillRect(ipx+PRISONER_W/2+1,ipy+4,2,2);
+  /* 손 들기 애니 */
+  const wave=Math.sin(t*3+p.x*0.01)*10;
+  ctx.fillStyle='#c0b8a0';
+  ctx.fillRect(ipx-3,ipy+10,5,12);
+  ctx.fillRect(ipx+PRISONER_W-2,ipy+10+wave*0.3,5,12);
+
+  /* 인물 이름 태그 */
+  ctx.font='bold 11px "Noto Sans KR"'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(px,py-CELL_H-20,CELL_W,18);
+  ctx.fillStyle='#f8d850'; ctx.fillText(p.name,px+CELL_W/2,py-CELL_H-6);
+
+  ctx.restore(); ctx.textAlign='left';
+}
+
+/* ════════════════════════════════════════════════
+   파티클
+════════════════════════════════════════════════ */
+function spawnRescue(x,y){
+  for(let i=0;i<30;i++){
+    const a=Math.random()*Math.PI*2, spd=1.5+Math.random()*4;
+    const cols=['#f8d850','#f0a020','#ffffff','#80ff80'];
+    particles.push({x:x-camX,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-2.5,
+      life:1,decay:0.025+Math.random()*0.02,r:3+Math.random()*5,
+      color:cols[Math.floor(Math.random()*cols.length)]});
+  }
+}
+function spawnHit(x,y){
+  for(let i=0;i<18;i++){
+    const a=Math.random()*Math.PI*2, spd=1+Math.random()*3;
+    particles.push({x:x-camX,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-1.5,
+      life:1,decay:0.035+Math.random()*0.03,r:2+Math.random()*4,color:'#ff4020'});
+  }
+}
+function updateParticles(dt){
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.12;p.life-=p.decay;return p.life>0;});
+}
+function drawParticles(){
+  particles.forEach(p=>{
+    ctx.save();ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.restore();
+  });
+}
+
+/* ════════════════════════════════════════════════
+   HUD (액션)
+════════════════════════════════════════════════ */
+function drawActionHUD(){
+  /* 상단 바 */
+  ctx.fillStyle='rgba(4,8,16,0.88)'; ctx.fillRect(0,0,W,50);
+  ctx.strokeStyle='rgba(140,100,30,0.5)'; ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(0,50);ctx.lineTo(W,50);ctx.stroke();
+
+  /* 타이머 */
+  const t=Math.max(0,G.timeLeft);
+  const tCol=t>5?'#f8d850':t>2?'#ff9020':'#ff3020';
+  ctx.font='bold 13px "Noto Sans KR"'; ctx.fillStyle='#907040'; ctx.fillText('남은 시간',16,20);
+  ctx.font='bold 28px "Noto Serif KR"'; ctx.fillStyle=tCol;
+  ctx.fillText(t.toFixed(1)+'초',16,44);
+
+  /* 구출 수 */
+  ctx.font='bold 13px "Noto Sans KR"'; ctx.fillStyle='#907040'; ctx.fillText('구출한 독립군',160,20);
+  ctx.font='bold 28px "Noto Serif KR"'; ctx.fillStyle='#80ff90';
+  ctx.fillText(`${G.rescued} / ${G.prisoners.length}명`,160,44);
+
+  /* 체력 */
+  ctx.font='bold 13px "Noto Sans KR"'; ctx.fillStyle='#907040'; ctx.fillText('체력',400,20);
+  for(let i=0;i<3;i++){
+    ctx.globalAlpha=i<G.hp?1:0.2;
+    ctx.font='22px sans-serif'; ctx.fillText('❤️',400+i*30,44);
+  }
+  ctx.globalAlpha=1;
+
+  /* 안내 */
+  ctx.font='11px "Noto Sans KR"'; ctx.fillStyle='rgba(140,120,80,0.6)';
+  ctx.fillText('방향키·WASD 이동  /  순사를 피해 독립군 감옥에 닿으면 구출!',520,30);
+
+  /* 타이머 바 */
+  const barW=W-32, barH=6, barY=H-10;
+  ctx.fillStyle='rgba(255,255,255,0.08)'; ctx.fillRect(16,barY,barW,barH);
+  const pct=Math.min(1,G.timeLeft/G.totalTime);
+  const bg=ctx.createLinearGradient(16,0,16+barW*pct,0);
+  bg.addColorStop(0,'#d84020'); bg.addColorStop(0.5,'#f0c030'); bg.addColorStop(1,'#40d060');
+  ctx.fillStyle=bg; ctx.fillRect(16,barY,barW*pct,barH);
+}
+
+/* ════════════════════════════════════════════════
+   독립군 인물 목록 (감옥 배치용)
+════════════════════════════════════════════════ */
+const INDEPENDENCE_FIGURES=[
+  '김구','안창호','윤봉길','안중근','홍범도',
+  '이회영','김좌진','한용운','신채호','이봉창',
+];
+
+/* ════════════════════════════════════════════════
+   액션 게임 시작
+════════════════════════════════════════════════ */
+function startActionGame(){
+  document.getElementById('quizScreen').classList.add('hidden');
+  document.getElementById('explainScreen').classList.add('hidden');
+
+  const totalTime=Math.max(5,quizState.timeBank);
+
+  /* 감옥 배치: 세계 곳곳에 6~8개 */
+  const prisonerCount=6+Math.floor(Math.random()*3);
+  const names=shuffle([...INDEPENDENCE_FIGURES]).slice(0,prisonerCount);
+  const prisoners=names.map((name,i)=>{
+    const spacing=WORLD_W/(prisonerCount+1);
+    return {
+      x: 300 + spacing*i + Math.random()*80 - 40,
+      y: GROUND_Y,
+      name,
+      rescued:false,
+    };
+  });
+
+  /* 순사 초기화 */
+  const guards=[
+    {x:500,y:GROUND_Y,dir:1,speed:80+Math.random()*30,patrolLeft:300,patrolRight:700},
+    {x:1400,y:GROUND_Y,dir:-1,speed:90+Math.random()*30,patrolLeft:1100,patrolRight:1700},
+  ];
+
+  G={
+    phase:'action',
+    player:{x:100,y:GROUND_Y,vy:0,onGround:true,dir:1,moving:false,invincible:0},
+    guards,
+    prisoners,
+    keys:{},
+    timeLeft:totalTime,
+    totalTime,
+    rescued:0,
+    hp:3,
+    over:false,
+    gameT:0,
+  };
+  particles=[];
+  camX=0;
+  buildBgTile();
+
+  lastTs=performance.now();
+  if(animId) cancelAnimationFrame(animId);
+  animId=requestAnimationFrame(actionLoop);
+}
+
+/* ════════════════════════════════════════════════
+   액션 게임 루프
+════════════════════════════════════════════════ */
+const GRAVITY=800;
+const JUMP_V=-460;
+const MOVE_SPD=180;
+
+function actionLoop(ts){
+  if(G.phase!=='action'){animId=null;return;}
+  const dt=Math.min((ts-lastTs)/1000,0.05);
+  lastTs=ts; G.gameT+=dt;
+
+  /* 타이머 */
+  G.timeLeft-=dt;
+  if(G.timeLeft<=0&&!G.over){
+    G.over=true;
+    setTimeout(()=>showResult(),800);
+  }
+
+  const p=G.player;
+
+  /* 플레이어 이동 */
+  p.moving=false;
+  if((G.keys['ArrowLeft']||G.keys['a'])&&p.x>30){p.x-=MOVE_SPD*dt;p.dir=-1;p.moving=true;}
+  if((G.keys['ArrowRight']||G.keys['d'])&&p.x<WORLD_W-40){p.x+=MOVE_SPD*dt;p.dir=1;p.moving=true;}
+
+  /* 점프 */
+  if((G.keys['ArrowUp']||G.keys['w']||G.keys[' '])&&p.onGround){
+    p.vy=JUMP_V; p.onGround=false;
+  }
+
+  /* 중력 */
+  p.vy+=GRAVITY*dt;
+  p.y+=p.vy*dt;
+  if(p.y>=GROUND_Y){p.y=GROUND_Y;p.vy=0;p.onGround=true;}
+
+  /* 무적 타이머 */
+  if(p.invincible>0) p.invincible-=dt;
+
+  /* 카메라 */
+  camX=Math.max(0,Math.min(WORLD_W-W,p.x-W*0.35));
+
+  /* 순사 이동 */
+  G.guards.forEach(g=>{
+    g.x+=g.speed*g.dir*dt;
+    if(g.x>g.patrolRight){g.x=g.patrolRight;g.dir=-1;}
+    if(g.x<g.patrolLeft){g.x=g.patrolLeft;g.dir=1;}
+
+    /* 플레이어 감지 → 추격 */
+    const dist=Math.abs(p.x-g.x);
+    if(dist<250){
+      const chaseDir=p.x>g.x?1:-1;
+      g.x+=g.speed*1.4*chaseDir*dt;
+      g.dir=chaseDir;
+    }
+
+    /* 충돌 */
+    if(p.invincible<=0&&Math.abs(p.x-g.x)<30&&Math.abs(p.y-g.y)<40){
+      G.hp--;
+      p.invincible=1.5;
+      spawnHit(p.x,p.y);
+      if(G.hp<=0&&!G.over){G.over=true;setTimeout(()=>showResult(),800);}
+    }
+  });
+
+  /* 독립군 구출 */
+  G.prisoners.forEach(pr=>{
+    if(pr.rescued) return;
+    if(Math.abs(p.x-pr.x-CELL_W/2)<40&&Math.abs(p.y-pr.y)<CELL_H+10){
+      pr.rescued=true; G.rescued++;
+      spawnRescue(pr.x+CELL_W/2,pr.y-CELL_H/2);
+    }
+  });
+
+  /* 전원 구출 */
+  if(G.rescued>=G.prisoners.length&&!G.over){
+    G.over=true; setTimeout(()=>showResult(),800);
+  }
+
+  updateParticles(dt);
+
+  /* ── 그리기 ── */
+  /* 배경 타일 */
+  if(bgTile){
+    for(let bx=-(camX%320);bx<W;bx+=320){
+      ctx.drawImage(bgTile,bx,0);
+    }
+  }
+
+  /* 구름 */
+  ctx.fillStyle='rgba(255,255,255,0.04)';
+  [[200,60,80,24],[500,40,100,30],[750,70,70,20],[1100,50,90,26]].forEach(([cx,cy,cw,ch])=>{
+    const rx=(cx-camX*0.3+WORLD_W)%W;
+    ctx.beginPath();ctx.ellipse(rx,cy,cw,ch,0,0,Math.PI*2);ctx.fill();
+  });
+
+  /* 독립군 감옥 */
+  G.prisoners.forEach(pr=>drawPrisoner(pr,G.gameT));
+
+  /* 순사 */
+  G.guards.forEach(g=>drawGuard(g,G.gameT));
+
+  /* 플레이어 (무적 시 깜빡임) */
+  if(p.invincible<=0||Math.floor(p.invincible*8)%2===0){
+    drawPlayer(p.x,p.y-PLAYER_H,p.dir,p.moving,G.gameT);
+  }
+
+  /* 파티클 */
+  drawParticles();
+
+  /* HUD */
+  drawActionHUD();
+
+  /* 게임오버 dim */
+  if(G.over){
+    ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(0,0,W,H);
+    ctx.font='bold 32px "Noto Serif KR"'; ctx.textAlign='center'; ctx.fillStyle='#f8d850';
+    ctx.fillText(G.rescued>=G.prisoners.length?'전원 구출 성공!':'작전 종료!',W/2,H/2);
+    ctx.textAlign='left';
+  }
+
+  animId=requestAnimationFrame(actionLoop);
+}
+
+/* ════════════════════════════════════════════════
+   결과 화면
+════════════════════════════════════════════════ */
+function showResult(){
+  G.phase='idle';
+  if(animId){cancelAnimationFrame(animId);animId=null;}
+
+  document.getElementById('resultScreen').classList.remove('hidden');
+  const win=G.rescued>0;
+  const allRescued=G.rescued>=G.prisoners.length;
+
+  document.getElementById('resTitle').className=win?'win':'lose';
+  document.getElementById('resTitle').textContent=
+    allRescued?'🎉 전원 구출 성공!':win?'🏃 부분 구출 성공':'💔 구출 실패...';
+  document.getElementById('resScore').textContent=
+    `${G.rescued} / ${G.prisoners.length}명`;
+  document.getElementById('resMsg').innerHTML=
+    allRescued
+      ?`퀴즈 적립 시간 <strong>${quizState.timeBank}초</strong>로 독립군 전원을 구출했습니다!<br>대한독립만세! 🇰🇷🏆`
+      :win
+        ?`퀴즈 적립 시간 <strong>${quizState.timeBank}초</strong>로 <strong>${G.rescued}명</strong>을 구출했습니다.<br>다음엔 퀴즈를 더 많이 맞혀 시간을 늘려보세요!`
+        :`순사에게 잡히거나 시간이 부족했습니다.<br>퀴즈를 잘 풀어 구출 시간을 확보하세요!`;
+}
+
+/* ════════════════════════════════════════════════
+   키 이벤트
+════════════════════════════════════════════════ */
+document.addEventListener('keydown',e=>{
+  if(G.keys) G.keys[e.key]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup',e=>{ if(G.keys) G.keys[e.key]=false; });
+
+/* ════════════════════════════════════════════════
+   초기화
+════════════════════════════════════════════════ */
+G={keys:{}};
+/* 시작 화면에 간단 배경 */
+buildBgTile();
+if(bgTile) for(let bx=0;bx<W;bx+=320) ctx.drawImage(bgTile,bx,0);
+</script>
+</body>
+</html>
